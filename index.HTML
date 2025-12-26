@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 手機版面必備 -->
+    <title>診所看診進度</title>
+    <style>
+        /* --- 樣式設定區域 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 450px; /* 手機上滿版，電腦上限制寬度 */
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+            text-align: center;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+            color: white;
+            padding: 25px 20px;
+        }
+
+        .clinic-name {
+            font-size: 1.6rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(5px);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .main-content {
+            padding: 30px 20px;
+        }
+
+        .number-box {
+            margin: 10px 0 30px 0;
+        }
+
+        .label {
+            color: #8898aa;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .current-number {
+            font-size: 7rem; /* 超大號碼 */
+            font-weight: 800;
+            color: #32325d;
+            line-height: 1;
+            font-variant-numeric: tabular-nums; /* 防止數字跳動 */
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 20px;
+        }
+
+        .info-item h3 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #32325d;
+        }
+
+        .footer {
+            background: #fcfcfc;
+            padding: 15px;
+            font-size: 0.8rem;
+            color: #adb5bd;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        /* 連線狀態指示燈 */
+        .connection-status {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ddd;
+        }
+        .status-ok { background-color: #2dce89; box-shadow: 0 0 8px #2dce89; }
+        .status-err { background-color: #f5365c; }
+        
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <!-- 狀態燈 -->
+        <div class="connection-status" id="connStatus" title="連線狀態"></div>
+
+        <div class="header">
+            <div class="clinic-name" id="clinicName">載入中...</div>
+            <div class="status-badge" id="status">---</div>
+        </div>
+
+        <div class="main-content">
+            <div class="number-box">
+                <div class="label">目前叫號</div>
+                <div class="current-number" id="currentNumber">--</div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">等待人數</div>
+                    <h3 id="waitingCount">--</h3>
+                </div>
+                <div class="info-item">
+                    <div class="label">最後更新</div>
+                    <h3 id="lastUpdate" style="font-size: 1.4rem; padding-top:4px;">--:--</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            系統每 20 秒自動更新
+        </div>
+    </div>
+
+    <script>
+        // =========================================================
+        // ★★★ 請在下方引號內貼上你的 Web App 網址 ★★★
+        const API_URL = "https://script.google.com/macros/s/AKfycbzuUZi7GI4v3b7zYXvtytod0LvYVwQF9lCMWnOTKPeDcbLB1X0Wao_KiFUIl-B6qGolwA/exec";
+        // =========================================================
+
+        const el = {
+            name: document.getElementById('clinicName'),
+            status: document.getElementById('status'),
+            number: document.getElementById('currentNumber'),
+            waiting: document.getElementById('waitingCount'),
+            update: document.getElementById('lastUpdate'),
+            conn: document.getElementById('connStatus')
+        };
+
+        async function updateData() {
+            try {
+                // 加上時間戳記，強制瀏覽器不讀取快取 (解決手機版不更新問題)
+                const timestamp = new Date().getTime();
+                const response = await fetch(API_URL + "?t=" + timestamp);
+                
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const data = await response.json();
+
+                // 更新畫面
+                el.name.innerText = data.clinicName;
+                el.status.innerText = data.status;
+                el.number.innerText = data.currentNumber;
+                el.waiting.innerText = data.waitingCount + " 人";
+                el.update.innerText = data.lastUpdate;
+
+                // 視覺回饋：如果等待人數 > 10，號碼變紅色
+                if (parseInt(data.waitingCount) > 10) {
+                    el.number.style.color = "#f5365c"; // 紅色
+                } else {
+                    el.number.style.color = "#32325d"; // 深藍色
+                }
+
+                // 連線燈號：綠色
+                el.conn.className = "connection-status status-ok";
+
+            } catch (error) {
+                console.error("更新失敗:", error);
+                // 連線燈號：紅色
+                el.conn.className = "connection-status status-err";
+                // 可以在這裡決定要不要顯示錯誤文字，目前選擇保持上一次的數字
+            }
+        }
+
+        // 1. 網頁打開時立即執行一次
+        updateData();
+
+        // 2. 設定定時器：每 20000 毫秒 (20秒) 執行一次
+        setInterval(updateData, 20000);
+
+    </script>
+</body>
+</html>
